@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">iTunesAPITest</string>
+    <string name="action_settings">Settings</string>
+    <string name="songs_quantity_not_1">songs</string>
+    <string name="songs_quantity_1">song</string>
+    <string name="search_album">Album title</string>
+</resources>
