@@ -16,12 +16,15 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import michael.zuborev.itunesapitest.data.Album;
 import michael.zuborev.itunesapitest.data.Track;
@@ -33,10 +36,6 @@ public class NetworkController {
 
     private static final String LOG_TAG = NetworkController.class.getSimpleName();
 
-    //2 parts of URL must cover searchInquiry like bread in a sandwich
-    private static final String mFirstPartSearchURL = "https://itunes.apple.com/search?term=";
-    private static final String mSecondPartSearchURL = "&entity=album&limit=100";
-
     private static AsyncTask mAsyncTask;
 
     private Context mContext;
@@ -47,14 +46,14 @@ public class NetworkController {
 
     public void launchSearchAsyncTask(String searchInquiry) {
         Log.d(LOG_TAG, "launching searchAsyncTask");
-        mAsyncTask = new NetworkSearchAsyncTask(parseSearchInquiry(searchInquiry));
+        mAsyncTask = new NetworkSearchAsyncTask(parseSearchInquiry(searchInquiry), mContext);
         ((NetworkSearchAsyncTask) mAsyncTask).execute();
         Log.d(LOG_TAG, "AsyncTask has been launched");
     }
 
     public void launchTrackAsyncTask(String albumID) {
         Log.d(LOG_TAG, "launching searchTrackTask");
-        mAsyncTask = new NetworkTrackAsyncTask(makeTracksURL(albumID));
+        mAsyncTask = new NetworkTrackAsyncTask(makeTracksURL(albumID), mContext);
         ((NetworkTrackAsyncTask) mAsyncTask).execute();
         Log.d(LOG_TAG, "AsyncTask has been launched");
     }
@@ -179,23 +178,6 @@ public class NetworkController {
         return mTracks;
     }
 
-    //Create URL from string
-    /*@Nullable
-    public static URL createUrl(String stringUrl) {
-        Log.d(LOG_TAG, "Creating URL");
-        URL url;
-
-        try {
-            url = new URL(stringUrl);
-        } catch (MalformedURLException exception) {
-            Log.e(LOG_TAG, "Error with creating URL", exception);
-            return null;
-        }
-        Log.d(LOG_TAG, "URL has been created");
-
-        return url;
-    }*/
-
     public static URL createUrl(String stringUrl) {
         Log.d(LOG_TAG, "Creating URL");
         URL url;
@@ -215,11 +197,11 @@ public class NetworkController {
         Log.d(LOG_TAG, "Making http request");
 
         String jsonResponse = "";
-        HttpURLConnection urlConnection = null;
+        HttpsURLConnection urlConnection = null;
         InputStream inputStream = null;
         try {
             Log.d(LOG_TAG, "Opening url connection");
-            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection = (HttpsURLConnection) url.openConnection();
             urlConnection.setRequestMethod("GET");
             urlConnection.setReadTimeout(10000);
             urlConnection.setConnectTimeout(15000);
@@ -260,12 +242,14 @@ public class NetworkController {
         return output.toString();
     }
 
-    private class NetworkSearchAsyncTask extends AsyncTask<URL, Void, List<Album>> {
+    private static class NetworkSearchAsyncTask extends AsyncTask<URL, Void, List<Album>> {
 
         private String mStringURL;
+        private WeakReference<Context> mContext;
 
-        private NetworkSearchAsyncTask(String stringURL) {
+        private NetworkSearchAsyncTask(String stringURL, Context context) {
             mStringURL = stringURL;
+            mContext = new WeakReference<>(context);
         }
 
         @Override
@@ -297,11 +281,11 @@ public class NetworkController {
         @Override
         protected void onPostExecute(List<Album> albums) {
             Log.d(LOG_TAG, "Setting albums");
-            ((MainActivity) mContext).setAlbums(albums);
+            ((MainActivity) mContext.get()).setAlbums(albums);
 
             //We need to launch recycler view adapter with our data
             Log.d(LOG_TAG, "Launching recyclerView");
-            Fragment currentFragment = ((MainActivity) mContext).getSupportFragmentManager()
+            Fragment currentFragment = ((MainActivity) mContext.get()).getSupportFragmentManager()
                     .findFragmentById(R.id.fragment_placeholder);
             if (currentFragment instanceof ScrollFragment) {
                 ((ScrollFragment) currentFragment).launchRecyclerView();
@@ -310,11 +294,13 @@ public class NetworkController {
         }
     }
 
-    private class NetworkTrackAsyncTask extends AsyncTask<URL, Void, List<Track>> {
+    private static class NetworkTrackAsyncTask extends AsyncTask<URL, Void, List<Track>> {
         private String mStringURL;
+        private WeakReference<Context> mContext;
 
-        public NetworkTrackAsyncTask(String stringURL) {
+        private NetworkTrackAsyncTask(String stringURL, Context context) {
             mStringURL = stringURL;
+            mContext = new WeakReference<>(context);
         }
 
         @Override
@@ -348,7 +334,7 @@ public class NetworkController {
 
             //We need to launch adapter with our data
             Log.d(LOG_TAG, "Launching adapter");
-            Fragment currentFragment = ((MainActivity) mContext).getSupportFragmentManager()
+            Fragment currentFragment = ((MainActivity) mContext.get()).getSupportFragmentManager()
                     .findFragmentById(R.id.fragment_placeholder);
             if (currentFragment instanceof AlbumFragment) {
                 ((AlbumFragment) currentFragment).setTracksAdapter(tracks);
