@@ -2,6 +2,7 @@ package michael.zuborev.itunesapitest;
 
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -36,9 +37,6 @@ public class NetworkController {
     private static final String mFirstPartSearchURL = "https://itunes.apple.com/search?term=";
     private static final String mSecondPartSearchURL = "&entity=album&limit=100";
 
-    private static final String mFirstPartSongsURL = "https://itunes.apple.com/lookup?id=";
-    private static final String mSecondPartSongsURL = "&entity=song";
-
     private static AsyncTask mAsyncTask;
 
     private Context mContext;
@@ -61,35 +59,45 @@ public class NetworkController {
         Log.d(LOG_TAG, "AsyncTask has been launched");
     }
 
-
     private static String makeTracksURL(String albumID) {
         Log.d(LOG_TAG, "Making tracks url");
-        StringBuilder result = new StringBuilder();
-        result.append(mFirstPartSongsURL);
-        result.append(albumID);
-        result.append(mSecondPartSongsURL);
+        Uri.Builder builder = new Uri.Builder();
+        builder.scheme("https");
+        builder.authority("itunes.apple.com");
+        builder.appendPath("lookup");
+        builder.appendQueryParameter("id",albumID);
+        builder.appendQueryParameter("entity","song");
         Log.d(LOG_TAG, "Url has been made");
-        return result.toString();
+        return builder.toString();
     }
 
     private static String parseSearchInquiry(String searchInquiry) {
         Log.d(LOG_TAG, "Parsing search inquiry");
         char[] cashInquiry = searchInquiry.toCharArray();
-        StringBuilder result = new StringBuilder();
-        result.append(mFirstPartSearchURL);
+
+        Uri.Builder builder = new Uri.Builder();
+        builder.scheme("https");
+        builder.authority("itunes.apple.com");
+        builder.appendPath("search");
+
+        //filter characters
+        StringBuilder term = new StringBuilder();
         for (int i = 0; i < cashInquiry.length; i++) {
             if (cashInquiry[i] == ' ') {
                 cashInquiry[i] = '+';
-                result.append(cashInquiry[i]);
+                term.append(cashInquiry[i]);
             } else if (Character.isLetterOrDigit(cashInquiry[i]) || cashInquiry[i] == '*'
                     || cashInquiry[i] == '-' || cashInquiry[i] == '_' || cashInquiry[i] == '.') {
-                result.append(cashInquiry[i]);
+                term.append(cashInquiry[i]);
             }
         }
-        result.append(mSecondPartSearchURL);
-        Log.d(LOG_TAG, "SearchInquiry has been parsed");
 
-        return result.toString();
+        builder.appendQueryParameter("term", term.toString());
+        builder.appendQueryParameter("entity","album");
+        builder.appendQueryParameter("limit","100");
+
+        Log.d(LOG_TAG, "SearchInquiry has been parsed");
+        return builder.toString();
     }
 
     private static ArrayList<Album> parseJSONSearch(String jsonResponse) {
@@ -172,7 +180,22 @@ public class NetworkController {
     }
 
     //Create URL from string
-    @Nullable
+    /*@Nullable
+    public static URL createUrl(String stringUrl) {
+        Log.d(LOG_TAG, "Creating URL");
+        URL url;
+
+        try {
+            url = new URL(stringUrl);
+        } catch (MalformedURLException exception) {
+            Log.e(LOG_TAG, "Error with creating URL", exception);
+            return null;
+        }
+        Log.d(LOG_TAG, "URL has been created");
+
+        return url;
+    }*/
+
     public static URL createUrl(String stringUrl) {
         Log.d(LOG_TAG, "Creating URL");
         URL url;
@@ -252,13 +275,15 @@ public class NetworkController {
             ArrayList<Album> mAlbumList;
 
             String jsonResponse = "";
-            try {
-                Log.d(LOG_TAG, "Making Http request");
-                jsonResponse = makeHttpRequest(url);
-                Log.d(LOG_TAG, "Http request has been made");
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Exception making http request " + e);
-                e.printStackTrace();
+            if (!isCancelled()) {
+                try {
+                    Log.d(LOG_TAG, "Making Http request");
+                    jsonResponse = makeHttpRequest(url);
+                    Log.d(LOG_TAG, "Http request has been made");
+                } catch (IOException e) {
+                    Log.e(LOG_TAG, "Exception making http request " + e);
+                    e.printStackTrace();
+                }
             }
 
             Log.d(LOG_TAG, "Launching json parsing");
@@ -299,13 +324,15 @@ public class NetworkController {
             List<Track> mTracks;
 
             String jsonResponse = "";
-            try {
-                Log.d(LOG_TAG, "Making HTTP request");
-                jsonResponse = makeHttpRequest(url);
-                Log.d(LOG_TAG, "HTTP request has been made");
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Exception making http request " + e);
-                e.printStackTrace();
+            if (!isCancelled()) {
+                try {
+                    Log.d(LOG_TAG, "Making HTTP request");
+                    jsonResponse = makeHttpRequest(url);
+                    Log.d(LOG_TAG, "HTTP request has been made");
+                } catch (IOException e) {
+                    Log.e(LOG_TAG, "Exception making http request " + e);
+                    e.printStackTrace();
+                }
             }
 
             Log.d(LOG_TAG, "Parsing json response");
